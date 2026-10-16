@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Desafio Eletrostático</title>
+    <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+    <div class="placar">Pontuação: <span id="pontos">0</span></div>
+    
+    <div class="pergunta">
+        Observe a trajetória do <span id="textoParticula" class="nome-particula proton-text">Próton (+)</span>.<br>
+        Quais são os sinais das placas?
+    </div>
+
+    <canvas id="jogoCanvas" width="700" height="400"></canvas>
+    
+    <div class="botoes">
+        <!-- Adicionamos onmouseover e onmouseout para detectar o hover do mouse -->
+        <button onclick="verificarResposta(1)" onmouseover="destacarPlacas(1)" onmouseout="destacarPlacas(0)">Placa Superior (+) / Inferior (-)</button>
+        <button onclick="verificarResposta(-1)" onmouseover="destacarPlacas(-1)" onmouseout="destacarPlacas(0)">Placa Superior (-) / Inferior (+)</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('jogoCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let posX, posY, velX, velY, aceleracaoY;
+        let rastro = [];
+        let animacaoId;
+        
+        let pontuacao = 0;
+        let tipoParticula = 1; 
+        let sinalPlacaSuperior = 1; 
+
+        // Novas variáveis para controlar a cor e o texto das placas visualmente
+        let corPlacaSup = '#7f8c8d'; // Cinza padrão
+        let corPlacaInf = '#7f8c8d'; 
+        let textoPlacaSup = "Placa Superior ?";
+        let textoPlacaInf = "Placa Inferior ?";
+
+        // Função que é chamada quando o mouse passa por cima dos botões
+        function destacarPlacas(opcao) {
+            if (opcao === 1) {
+                corPlacaSup = 'rgba(231, 76, 60, 0.8)'; // Vermelho (+)
+                corPlacaInf = 'rgba(52, 152, 219, 0.8)'; // Azul (-)
+                textoPlacaSup = "Placa Superior (+)";
+                textoPlacaInf = "Placa Inferior (-)";
+            } else if (opcao === -1) {
+                corPlacaSup = 'rgba(52, 152, 219, 0.8)'; // Azul (-)
+                corPlacaInf = 'rgba(231, 76, 60, 0.8)'; // Vermelho (+)
+                textoPlacaSup = "Placa Superior (-)";
+                textoPlacaInf = "Placa Inferior (+)";
+            } else {
+                // Quando o mouse sai, volta para o estado neutro (0)
+                corPlacaSup = '#7f8c8d'; 
+                corPlacaInf = '#7f8c8d'; 
+                textoPlacaSup = "Placa Superior ?";
+                textoPlacaInf = "Placa Inferior ?";
+            }
+        }
+
+        function darFeedbackVisual(acertou) {
+            const corOriginal = '#1e1e1e';
+            const corAcerto = '#14522d'; 
+            const corErro = '#5c1616';   
+
+            document.body.style.backgroundColor = acertou ? corAcerto : corErro;
+
+            setTimeout(() => {
+                document.body.style.backgroundColor = corOriginal;
+            }, 400);
+        }
+
+        function gerarNovoDesafio() {
+            tipoParticula = Math.random() > 0.5 ? 1 : -1;
+            sinalPlacaSuperior = Math.random() > 0.5 ? 1 : -1;
+            
+            const spanParticula = document.getElementById('textoParticula');
+            if (tipoParticula === 1) {
+                spanParticula.innerText = "Próton (+)";
+                spanParticula.className = "nome-particula proton-text";
+            } else {
+                spanParticula.innerText = "Elétron (-)";
+                spanParticula.className = "nome-particula eletron-text";
+            }
+
+            iniciarAnimacao();
+        }
+
+        function iniciarAnimacao() {
+            cancelAnimationFrame(animacaoId);
+            posX = 50; 
+            posY = 200; 
+            velX = 6; 
+            velY = 0;
+            rastro = [];
+            
+            const fatorEscala = 0.08;
+            aceleracaoY = tipoParticula * sinalPlacaSuperior * fatorEscala;
+            
+            atualizarFisica();
+        }
+
+        function desenharCenario() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Agora usamos as variáveis de cor para desenhar as placas
+            ctx.fillStyle = corPlacaSup;
+            ctx.fillRect(100, 50, 500, 20); 
+            
+            ctx.fillStyle = corPlacaInf;
+            ctx.fillRect(100, 330, 500, 20); 
+            
+            // E as variáveis de texto para atualizar os nomes dinamicamente
+            ctx.fillStyle = 'white';
+            ctx.font = '18px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(textoPlacaSup, 350, 40);
+            ctx.fillText(textoPlacaInf, 350, 370);
+
+            if (rastro.length > 0) {
+                ctx.beginPath();
+                ctx.strokeStyle = tipoParticula === 1 ? 'rgba(231, 76, 60, 0.6)' : 'rgba(52, 152, 219, 0.6)';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([5, 5]);
+                ctx.moveTo(rastro[0].x, rastro[0].y);
+                for (let i = 1; i < rastro.length; i++) {
+                    ctx.lineTo(rastro[i].x, rastro[i].y);
+                }
+                ctx.stroke();
+                ctx.setLineDash([]); 
+            }
+
+            ctx.beginPath();
+            ctx.arc(posX, posY, 14, 0, Math.PI * 2);
+            ctx.fillStyle = tipoParticula === 1 ? '#e74c3c' : '#3498db';
+            ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(tipoParticula === 1 ? '+' : '-', posX, posY);
+        }
+
+        function atualizarFisica() {
+            posX += velX;
+            velY += aceleracaoY;
+            posY += velY;
+            
+            if (Math.random() > 0.5) {
+                rastro.push({x: posX, y: posY});
+            }
+
+            desenharCenario();
+
+            if (posX > 650 || posY < 75 || posY > 325) {
+                setTimeout(iniciarAnimacao, 500); 
+            } else {
+                animacaoId = requestAnimationFrame(atualizarFisica);
+            }
+        }
+
+        function verificarResposta(chutePlacaSuperior) {
+            // Volta as placas para a cor cinza assim que o jogador clica
+            destacarPlacas(0);
+
+            if (chutePlacaSuperior === sinalPlacaSuperior) {
+                pontuacao += 10;
+                darFeedbackVisual(true);
+            } else {
+                pontuacao = 0;
+                darFeedbackVisual(false);
+            }
+            
+            document.getElementById('pontos').innerText = pontuacao;
+            gerarNovoDesafio(); 
+        }
+
+        gerarNovoDesafio();
+    </script>
+</body>
+</html>
