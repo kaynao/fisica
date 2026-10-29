@@ -20,30 +20,69 @@
       <strong>Para qual direção aponta a Força Magnética (F) inicial?</strong>
     </div>
 
-    <canvas id="campoCanvas" width="700" height="400"></canvas>
-    <div id="explicacao" class="explicacao"></div>
+    <div id="legendaCampo" class="legenda-campo"></div>
+    <canvas id="campoCanvas" width="800" height="480"></canvas>
 
     <div class="botoes" id="areaBotoes3">
       <button
-        onclick="verificarForca(1)"
-        onmouseover="destacarSeta(1)"
-        onmouseout="destacarSeta(0)"
+        onclick="verificarForca('CIMA')"
+        onmouseover="destacarSeta('CIMA')"
+        onmouseout="destacarSeta(null)"
       >
         Para Cima (⬆)
       </button>
       <button
-        onclick="verificarForca(-1)"
-        onmouseover="destacarSeta(-1)"
-        onmouseout="destacarSeta(0)"
+        onclick="verificarForca('BAIXO')"
+        onmouseover="destacarSeta('BAIXO')"
+        onmouseout="destacarSeta(null)"
       >
         Para Baixo (⬇)
+      </button>
+      <button
+        onclick="verificarForca('ESQUERDA')"
+        onmouseover="destacarSeta('ESQUERDA')"
+        onmouseout="destacarSeta(null)"
+      >
+        Para Esquerda (⬅)
+      </button>
+      <button
+        onclick="verificarForca('DIREITA')"
+        onmouseover="destacarSeta('DIREITA')"
+        onmouseout="destacarSeta(null)"
+      >
+        Para Direita (➔)
+      </button>
+      <button
+        onclick="verificarForca('ENTRANDO')"
+        onmouseover="destacarSeta('ENTRANDO')"
+        onmouseout="destacarSeta(null)"
+      >
+        Entrando na Tela (⊗)
+      </button>
+      <button
+        onclick="verificarForca('SAINDO')"
+        onmouseover="destacarSeta('SAINDO')"
+        onmouseout="destacarSeta(null)"
+      >
+        Saindo da Tela (⊙)
       </button>
     </div>
 
     <script>
       const canvas = document.getElementById("campoCanvas");
       const ctx = canvas.getContext("2d");
-      const CAMPO = { x1: 150, y1: 50, x2: 650, y2: 350 };
+      const CAMPO = { x1: 150, y1: 100, x2: 650, y2: 380 };
+      const COR_V = "#f1c40f"; // vetor velocidade (amarelo)
+      const COR_F = "#f472b6"; // dica de força ao passar o mouse (rosa)
+      const CONTORNO = "rgba(2, 44, 34, 0.95)";
+      const DIRS = {
+        CIMA: { x: 0, y: -1, z: 0, nome: "Para Cima (⬆)" },
+        BAIXO: { x: 0, y: 1, z: 0, nome: "Para Baixo (⬇)" },
+        ESQUERDA: { x: -1, y: 0, z: 0, nome: "Para Esquerda (⬅)" },
+        DIREITA: { x: 1, y: 0, z: 0, nome: "Para Direita (➔)" },
+        ENTRANDO: { x: 0, y: 0, z: -1, nome: "Entrando na Tela (⊗)" },
+        SAINDO: { x: 0, y: 0, z: 1, nome: "Saindo da Tela (⊙)" },
+      };
       const OMEGA = 0.03; // quanto o vetor velocidade gira por frame (rad)
       let ultimoT = 0;
 
@@ -52,7 +91,7 @@
       const maxRepeticoes = 2;
       let respostaUsuario = 0;
 
-      let posX, posY, velX, velY;
+      let posX, posY, posZ, velX, velY, velZ, raioParticula;
       let rastro = [];
       let animacaoId;
 
@@ -60,9 +99,37 @@
       let vidas = 3;
 
       let tipoParticula = 1; // 1 (+) ou -1 (-)
-      let direcaoCampo = 1; // 1 (Entrando ⊗), -1 (Saindo ⊙)
-      let forcaCorreta = 1; // 1 (Para cima), -1 (Para baixo)
-      let setaHover = 0; // 1 (Para cima), -1 (Para baixo), 0 (Nenhum)
+      let dirVelocidade = "DIREITA";
+      let dirCampo = "ENTRANDO";
+      let forcaCorreta = "CIMA";
+      let setaHover = null;
+
+      function produtoVetorial(vKey, bKey, q) {
+        const v = DIRS[vKey];
+        const b = DIRS[bKey];
+
+        const vy_phys = -v.y;
+        const by_phys = -b.y;
+
+        const fx_phys = q * (vy_phys * b.z - v.z * by_phys);
+        const fy_phys = q * (v.z * b.x - v.x * b.z);
+        const fz_phys = q * (v.x * by_phys - vy_phys * b.x);
+
+        const fx_canvas = Math.sign(fx_phys);
+        const fy_canvas = Math.sign(-fy_phys);
+        const fz_canvas = Math.sign(fz_phys);
+
+        for (let key in DIRS) {
+          if (
+            DIRS[key].x === fx_canvas &&
+            DIRS[key].y === fy_canvas &&
+            DIRS[key].z === fz_canvas
+          ) {
+            return key;
+          }
+        }
+        return "CIMA";
+      }
 
       function dentroDoCampo() {
         return (
@@ -71,6 +138,16 @@
           posY > CAMPO.y1 &&
           posY < CAMPO.y2
         );
+      }
+      function textoComContorno(texto, x, y, cor) {
+        ctx.save();
+        ctx.lineJoin = "round";
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = CONTORNO;
+        ctx.strokeText(texto, x, y);
+        ctx.fillStyle = cor;
+        ctx.fillText(texto, x, y);
+        ctx.restore();
       }
 
       function atualizarVidas() {
@@ -87,15 +164,42 @@
 
       function destacarSeta(sentido) {
         setaHover = sentido;
+        if (estado === "ESPERANDO") desenhar();
       }
 
       function gerarNovoDesafio() {
-        setaHover = 0;
+        setaHover = null;
         if (vidas <= 0) return;
 
         tipoParticula = Math.random() > 0.5 ? 1 : -1;
-        direcaoCampo = Math.random() > 0.5 ? 1 : -1;
-        forcaCorreta = direcaoCampo * tipoParticula;
+
+        // Sistema de níveis por pontuação
+        if (pontuacao < 30) {
+          // Nível 1: Movimento básico para a direita
+          dirVelocidade = "DIREITA";
+          dirCampo = Math.random() > 0.5 ? "ENTRANDO" : "SAINDO";
+        } else if (pontuacao < 60) {
+          // Nível 2: Movimento vindo dos 4 lados em 2D
+          const opcoesV = ["DIREITA", "ESQUERDA", "CIMA", "BAIXO"];
+          dirVelocidade = opcoesV[Math.floor(Math.random() * opcoesV.length)];
+          dirCampo = Math.random() > 0.5 ? "ENTRANDO" : "SAINDO";
+        } else {
+          // Nível 3: Modo 3D completo
+          const todas = Object.keys(DIRS);
+          dirVelocidade = todas[Math.floor(Math.random() * todas.length)];
+
+          // Garante que B seja ortogonal a V
+          const ortogonais = todas.filter((b) => {
+            const v = DIRS[dirVelocidade];
+            const bV = DIRS[b];
+            return v.x * bV.x + v.y * bV.y + v.z * bV.z === 0;
+          });
+          dirCampo = ortogonais[Math.floor(Math.random() * ortogonais.length)];
+        }
+
+        forcaCorreta = produtoVetorial(dirVelocidade, dirCampo, tipoParticula);
+        document.getElementById("legendaCampo").innerText =
+          `Campo B: ${DIRS[dirCampo].nome}`;
 
         estado = "ESPERANDO";
         repeticoes = 0;
@@ -112,55 +216,119 @@
           spanParticula.style.background = "#3498db";
         }
 
-        cancelAnimationFrame(animacaoId);
-        posX = 50;
-        posY = 200;
-        velX = 5;
-        velY = 0;
-        rastro = [];
+        resetarPosicaoParticula();
         desenhar();
       }
 
+      function resetarPosicaoParticula() {
+        cancelAnimationFrame(animacaoId);
+        rastro = [];
+        posZ = 0;
+        raioParticula = 14;
+
+        const speed = 5;
+        velX = DIRS[dirVelocidade].x * speed;
+        velY = DIRS[dirVelocidade].y * speed;
+        velZ = DIRS[dirVelocidade].z * speed;
+
+        const cx = canvas.width / 2;
+        const cy = (CAMPO.y1 + CAMPO.y2) / 2;
+        const inicio = {
+          DIREITA: [80, cy],
+          ESQUERDA: [canvas.width - 80, cy],
+          BAIXO: [cx, 80],
+          CIMA: [cx, canvas.height - 80],
+        };
+        [posX, posY] = inicio[dirVelocidade] || [cx, cy];
+      }
+
+      function desenharSeta(x, y, dir, comprimento, espessura, cor) {
+        const x2 = x + dir.x * comprimento;
+        const y2 = y + dir.y * comprimento;
+        const px = -dir.y,
+          py = dir.x;
+        const t = 8 + espessura * 2; // tamanho da ponta
+        const bx = x2 - dir.x * t,
+          by = y2 - dir.y * t;
+
+        // duas camadas: contorno escuro (mais grosso) e depois a cor
+        const camadas = [
+          { cor: CONTORNO, extra: 5 },
+          { cor: cor, extra: 0 },
+        ];
+        ctx.save();
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        for (const c of camadas) {
+          ctx.strokeStyle = c.cor;
+          ctx.fillStyle = c.cor;
+          ctx.lineWidth = espessura + c.extra;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(bx, by);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(x2, y2);
+          ctx.lineTo(bx + px * t * 0.6, by + py * t * 0.6);
+          ctx.lineTo(bx - px * t * 0.6, by - py * t * 0.6);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
       function desenhar() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        const cx = canvas.width / 2;
+        const cy = (CAMPO.y1 + CAMPO.y2) / 2;
+        // quando o canvas encolhe na tela, aumenta as fontes para compensar
+        const esc = Math.min(
+          1.8,
+          Math.max(
+            1,
+            (0.75 * canvas.width) / (canvas.clientWidth || canvas.width),
+          ),
+        );
+        const rd = Math.max(4, raioParticula);
+
         if (vidas <= 0) {
           ctx.fillStyle = "white";
-          ctx.font = "bold 40px Arial";
           ctx.textAlign = "center";
-          ctx.fillText("FIM DE JOGO!", 350, 180);
-          ctx.font = "20px Arial";
-          ctx.fillText(`Você fez ${pontuacao} pontos.`, 350, 230);
+          ctx.textBaseline = "middle";
+          ctx.font = `bold ${40 * esc}px Arial`;
+          ctx.fillText("FIM DE JOGO!", cx, cy - 30);
+          ctx.font = `${20 * esc}px Arial`;
+          ctx.fillText(`Você fez ${pontuacao} pontos.`, cx, cy + 20);
           return;
         }
 
-        // 1. Região do Campo Magnético
+        // 1. Região do campo
+        const larg = CAMPO.x2 - CAMPO.x1;
+        const alt = CAMPO.y2 - CAMPO.y1;
         ctx.fillStyle = "rgba(16, 185, 129, 0.1)";
-        ctx.fillRect(150, 50, 500, 300);
+        ctx.fillRect(CAMPO.x1, CAMPO.y1, larg, alt);
         ctx.strokeStyle = "#10b981";
         ctx.lineWidth = 1;
         ctx.setLineDash([]);
-        ctx.strokeRect(150, 50, 500, 300);
+        ctx.strokeRect(CAMPO.x1, CAMPO.y1, larg, alt);
 
-        // 2. Símbolos do Campo Magnético
-        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-        ctx.font = "20px Arial";
+        // 2. Símbolos do campo (mais discretos e sem aparecer sob a partícula)
+        ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+        ctx.font = `${20 * esc}px Arial`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
-        let simboloCampo = direcaoCampo === 1 ? "⊗" : "⊙";
-        let legendaCampo =
-          direcaoCampo === 1 ? "Campo B (Entrando ⊗)" : "Campo B (Saindo ⊙)";
+        const B = DIRS[dirCampo];
+        const setasB = { CIMA: "↑", BAIXO: "↓", ESQUERDA: "←", DIREITA: "→" };
+        const simboloCampo = B.z < 0 ? "⊗" : B.z > 0 ? "⊙" : setasB[dirCampo];
 
         for (let x = 190; x <= 610; x += 60) {
-          for (let y = 90; y <= 310; y += 50) {
+          for (let y = cy - 100; y <= cy + 100; y += 50) {
+            if (Math.hypot(x - posX, y - posY) < rd + 22) continue;
             ctx.fillText(simboloCampo, x, y);
           }
         }
-
-        ctx.fillStyle = "#f1c40f";
-        ctx.font = "bold 16px Arial";
-        ctx.fillText(legendaCampo, 400, 30);
 
         // 3. Rastro
         if (rastro.length > 0) {
@@ -178,57 +346,72 @@
           ctx.setLineDash([]);
         }
 
-        // 4. Partícula
+        // 4. Partícula (só ela fica com transparência em Z)
+        ctx.save();
+        ctx.globalAlpha = Math.max(0.2, Math.min(1, 1 + posZ / 100));
         ctx.beginPath();
-        ctx.arc(posX, posY, 14, 0, Math.PI * 2);
+        ctx.arc(posX, posY, rd, 0, Math.PI * 2);
         ctx.fillStyle = tipoParticula === 1 ? "#e74c3c" : "#3498db";
         ctx.fill();
         ctx.fillStyle = "white";
-        ctx.font = "bold 16px Arial";
+        ctx.font = `bold ${Math.max(10, rd)}px Arial`;
         ctx.fillText(tipoParticula === 1 ? "+" : "-", posX, posY);
+        ctx.restore();
 
-        // Vetor velocidade inicial
-        ctx.strokeStyle = "#f1c40f";
-        ctx.fillStyle = "#f1c40f";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(posX, posY);
-        ctx.lineTo(posX + 35, posY);
-        ctx.stroke();
+        // 5. Vetor velocidade: nasce na borda da partícula, rótulo depois da ponta
+        const dirV = DIRS[dirVelocidade];
+        ctx.font = `bold ${15 * esc}px Arial`;
+        if (dirV.z === 0) {
+          desenharSeta(
+            posX + dirV.x * (rd + 2),
+            posY + dirV.y * (rd + 2),
+            dirV,
+            38,
+            3,
+            COR_V,
+          );
+          const d = rd + 38 + 14 * esc;
+          textoComContorno("v", posX + dirV.x * d, posY + dirV.y * d, COR_V);
+        } else {
+          textoComContorno(
+            dirV.z < 0 ? "v ⊗" : "v ⊙",
+            posX + rd + 22 * esc,
+            posY - rd - 4,
+            COR_V,
+          );
+        }
 
-        ctx.beginPath();
-        ctx.moveTo(posX + 35, posY - 5);
-        ctx.lineTo(posX + 45, posY);
-        ctx.lineTo(posX + 35, posY + 5);
-        ctx.fill();
-
-        ctx.font = "bold 14px Arial";
-        ctx.fillText("v", posX + 20, posY - 12);
-
-        // 5. Seta ao passar o mouse
-        if (setaHover !== 0) {
-          ctx.strokeStyle = "#f1c40f";
-          ctx.fillStyle = "#f1c40f";
-          ctx.lineWidth = 4;
-
-          let targetY = setaHover === 1 ? posY - 60 : posY + 60;
-
-          ctx.beginPath();
-          ctx.moveTo(posX, posY);
-          ctx.lineTo(posX, targetY);
-          ctx.stroke();
-
-          ctx.beginPath();
-          if (setaHover === 1) {
-            ctx.moveTo(posX - 8, targetY + 10);
-            ctx.lineTo(posX + 8, targetY + 10);
-            ctx.lineTo(posX, targetY);
+        // 6. Dica ao passar o mouse (rosa, para não confundir com o v)
+        if (setaHover) {
+          const d = DIRS[setaHover];
+          if (d.z === 0) {
+            // se a dica for paralela a v, desloca um pouco para não sobrepor
+            const paralela = d.x * dirV.x + d.y * dirV.y !== 0;
+            const desvio = paralela ? 12 : 0;
+            const x0 = posX + d.x * (rd + 6) - d.y * desvio;
+            const y0 = posY + d.y * (rd + 6) + d.x * desvio;
+            desenharSeta(x0, y0, d, 48, 5, COR_F);
+            ctx.font = `bold ${16 * esc}px Arial`;
+            textoComContorno(
+              "F",
+              x0 + d.x * 24 - d.y * 16 * esc,
+              y0 + d.y * 24 + d.x * 16 * esc,
+              COR_F,
+            );
           } else {
-            ctx.moveTo(posX - 8, targetY - 10);
-            ctx.lineTo(posX + 8, targetY - 10);
-            ctx.lineTo(posX, targetY);
+            // ⊗ / ⊙: selo com fundo escuro, acima (ou abaixo, se faltar espaço)
+            const by = posY + (posY > 120 ? -1 : 1) * (rd + 34);
+            ctx.beginPath();
+            ctx.arc(posX, by, 20, 0, Math.PI * 2);
+            ctx.fillStyle = CONTORNO;
+            ctx.fill();
+            ctx.strokeStyle = COR_F;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.fillStyle = COR_F;
+            ctx.font = "bold 26px Arial";
+            ctx.fillText(d.z < 0 ? "⊗" : "⊙", posX, by);
           }
-          ctx.fill();
         }
       }
 
@@ -240,32 +423,41 @@
         ultimoT = t;
 
         if (dentroDoCampo()) {
-          // força perpendicular à velocidade: gira o vetor, não soma aceleração em Y
-          const ang = forcaCorreta * -OMEGA * k;
-          const vx = velX * Math.cos(ang) - velY * Math.sin(ang);
-          const vy = velX * Math.sin(ang) + velY * Math.cos(ang);
-          velX = vx;
-          velY = vy;
+          const omega = 0.04 * k;
+          const fDir = DIRS[forcaCorreta];
+
+          if (fDir.z === 0) {
+            velX += fDir.x * omega * 2;
+            velY += fDir.y * omega * 2;
+          } else {
+            // Aplica variação em Z (profundidade / tamanho da partícula)
+            velZ += fDir.z * 0.2 * k;
+            raioParticula += fDir.z * 0.25 * k;
+          }
         }
 
         posX += velX * k;
         posY += velY * k;
+        posZ += velZ * k;
 
         if (Math.random() > 0.5) rastro.push({ x: posX, y: posY });
         desenhar();
 
-        if (posX > 670 || posY < 30 || posY > 370) {
+        if (
+          posX < 20 ||
+          posX > canvas.width - 20 ||
+          posY < 20 ||
+          posY > canvas.height - 20 ||
+          raioParticula < 3 ||
+          raioParticula > 40
+        ) {
           repeticoes++;
 
           if (repeticoes < maxRepeticoes) {
-            posX = 50;
-            posY = 200;
-            velX = 5;
-            velY = 0;
-            rastro = [];
+            resetarPosicaoParticula();
             setTimeout(() => {
-                ultimoT = performance.now();
-                animacaoId = requestAnimationFrame(atualizarFisica);
+              ultimoT = performance.now();
+              animacaoId = requestAnimationFrame(atualizarFisica);
             }, 200);
           } else {
             finalizarRodada();
@@ -282,14 +474,18 @@
         document.getElementById("pontos3").innerText = pontuacao;
         atualizarVidas();
         document.getElementById("areaBotoes3").innerHTML = `
-                <button onclick="verificarForca(1)" onmouseover="destacarSeta(1)" onmouseout="destacarSeta(0)">Para Cima (⬆)</button>
-                <button onclick="verificarForca(-1)" onmouseover="destacarSeta(-1)" onmouseout="destacarSeta(0)">Para Baixo (⬇)</button>
-            `;
+        <button onclick="verificarForca('CIMA')" onmouseover="destacarSeta('CIMA')" onmouseout="destacarSeta(null)">Para Cima (⬆)</button>
+        <button onclick="verificarForca('BAIXO')" onmouseover="destacarSeta('BAIXO')" onmouseout="destacarSeta(null)">Para Baixo (⬇)</button>
+        <button onclick="verificarForca('ESQUERDA')" onmouseover="destacarSeta('ESQUERDA')" onmouseout="destacarSeta(null)">Para Esquerda (⬅)</button>
+        <button onclick="verificarForca('DIREITA')" onmouseover="destacarSeta('DIREITA')" onmouseout="destacarSeta(null)">Para Direita (➔)</button>
+        <button onclick="verificarForca('ENTRANDO')" onmouseover="destacarSeta('ENTRANDO')" onmouseout="destacarSeta(null)">Entrando na Tela (⊗)</button>
+        <button onclick="verificarForca('SAINDO')" onmouseover="destacarSeta('SAINDO')" onmouseout="destacarSeta(null)">Saindo da Tela (⊙)</button>
+    `;
         gerarNovoDesafio();
       }
 
       function verificarForca(chute) {
-        setaHover = 0;
+        setaHover = null;
         if (estado !== "ESPERANDO") return;
 
         respostaUsuario = chute;
@@ -300,13 +496,15 @@
         ultimoT = performance.now();
         atualizarFisica();
       }
-
       function finalizarRodada() {
         const nomeP = tipoParticula === 1 ? "Próton (+)" : "Elétron (-)";
-        const nomeB = direcaoCampo === 1 ? "entrando (⊗)" : "saindo (⊙)";
-        const nomeF = forcaCorreta === 1 ? "para cima" : "para baixo";
+        const nomeV = DIRS[dirVelocidade].nome;
+        const nomeB = DIRS[dirCampo].nome;
+        const nomeF = DIRS[forcaCorreta].nome;
+
         document.getElementById("explicacao").innerText =
-  `Rodada anterior: ${nomeP} com campo ${nomeB} → força ${nomeF}.`;
+          `Rodada anterior: ${nomeP} com v ${nomeV} e B ${nomeB} → Força resultante: ${nomeF}.`;
+
         if (respostaUsuario === forcaCorreta) {
           pontuacao += 10;
           darFeedback(true);
@@ -330,6 +528,9 @@
 
       atualizarVidas();
       gerarNovoDesafio();
+      window.addEventListener("resize", () => {
+        if (estado === "ESPERANDO") desenhar();
+      });
     </script>
   </body>
 </html>
