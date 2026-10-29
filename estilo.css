@@ -1,13 +1,12 @@
+/* --- Configurações Gerais da Página --- */
 body { 
     display: flex; 
     flex-direction: column;
     align-items: center; 
-    /* A cor original do fundo */
     background-color: #1e1e1e; 
     color: white;
     font-family: Arial, sans-serif; 
     margin-top: 30px;
-    /* Esta linha faz a transição de cores ser suave (0.3 segundos) */
     transition: background-color 0.3s ease; 
 }
 
@@ -18,17 +17,53 @@ canvas {
     margin-bottom: 20px;
 }
 
-.placar {
+/* --- Botão de Voltar ao Menu --- */
+.btn-voltar {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    padding: 10px 15px;
+    background-color: #333; 
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 16px;
+    border: 2px solid #555;
+    transition: all 0.2s ease;
+}
+
+.btn-voltar:hover {
+    background-color: #444;
+    border-color: #f1c40f;
+    transform: scale(1.05);
+}
+
+/* --- Painel de Status (Vidas e Pontuação) --- */
+.painel-status {
+    display: flex;
+    gap: 50px;
     font-size: 24px;
     font-weight: bold;
-    color: #f1c40f;
     margin-bottom: 10px;
 }
 
+.pontos-texto { color: #f1c40f; }
+.vidas-texto { color: #e74c3c; }
+
+/* --- Área da Pergunta e Partículas --- */
 .pergunta {
     font-size: 20px;
     margin-bottom: 20px;
     text-align: center;
+}
+
+#listaParticulas {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 10px;
+    flex-wrap: wrap;
 }
 
 .nome-particula {
@@ -37,9 +72,7 @@ canvas {
     border-radius: 4px;
 }
 
-.proton-text { background: #e74c3c; }
-.eletron-text { background: #3498db; }
-
+/* --- Botões de Resposta --- */
 .botoes {
     display: flex;
     gap: 20px;

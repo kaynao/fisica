@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Desafio Magnético (Regra da Mão)</title>
+    <link rel="stylesheet" href="estilo3.css" />
+  </head>
+  <body>
+    <a href="index.html" class="btn-voltar">⬅ Voltar ao Menu</a>
+
+    <div class="painel-status">
+      <div class="pontos-texto">Pontuação: <span id="pontos3">0</span></div>
+      <div class="vidas-texto">Vidas: <span id="vidas3">❤️❤️❤️</span></div>
+    </div>
+
+    <div class="pergunta">
+      A partícula
+      <span id="textoParticula" class="nome-particula">Próton (+)</span> entra
+      no Campo Magnético.<br />
+      <strong>Para qual direção aponta a Força Magnética (F) inicial?</strong>
+    </div>
+
+    <canvas id="campoCanvas" width="700" height="400"></canvas>
+    <div id="explicacao" class="explicacao"></div>
+
+    <div class="botoes" id="areaBotoes3">
+      <button
+        onclick="verificarForca(1)"
+        onmouseover="destacarSeta(1)"
+        onmouseout="destacarSeta(0)"
+      >
+        Para Cima (⬆)
+      </button>
+      <button
+        onclick="verificarForca(-1)"
+        onmouseover="destacarSeta(-1)"
+        onmouseout="destacarSeta(0)"
+      >
+        Para Baixo (⬇)
+      </button>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("campoCanvas");
+      const ctx = canvas.getContext("2d");
+      const CAMPO = { x1: 150, y1: 50, x2: 650, y2: 350 };
+      const OMEGA = 0.03; // quanto o vetor velocidade gira por frame (rad)
+      let ultimoT = 0;
+
+      let estado = "ESPERANDO"; // 'ESPERANDO' ou 'ANIMANDO'
+      let repeticoes = 0;
+      const maxRepeticoes = 2;
+      let respostaUsuario = 0;
+
+      let posX, posY, velX, velY;
+      let rastro = [];
+      let animacaoId;
+
+      let pontuacao = 0;
+      let vidas = 3;
+
+      let tipoParticula = 1; // 1 (+) ou -1 (-)
+      let direcaoCampo = 1; // 1 (Entrando ⊗), -1 (Saindo ⊙)
+      let forcaCorreta = 1; // 1 (Para cima), -1 (Para baixo)
+      let setaHover = 0; // 1 (Para cima), -1 (Para baixo), 0 (Nenhum)
+
+      function dentroDoCampo() {
+        return (
+          posX > CAMPO.x1 &&
+          posX < CAMPO.x2 &&
+          posY > CAMPO.y1 &&
+          posY < CAMPO.y2
+        );
+      }
+
+      function atualizarVidas() {
+        let coracoes = "";
+        for (let i = 0; i < vidas; i++) coracoes += "❤️";
+        for (let i = vidas; i < 3; i++) coracoes += "🖤";
+        document.getElementById("vidas3").innerText = coracoes;
+      }
+
+      function darFeedback(acertou) {
+        document.body.classList.add(acertou ? "acerto" : "erro");
+        setTimeout(() => document.body.classList.remove("acerto", "erro"), 400);
+      }
+
+      function destacarSeta(sentido) {
+        setaHover = sentido;
+      }
+
+      function gerarNovoDesafio() {
+        setaHover = 0;
+        if (vidas <= 0) return;
+
+        tipoParticula = Math.random() > 0.5 ? 1 : -1;
+        direcaoCampo = Math.random() > 0.5 ? 1 : -1;
+        forcaCorreta = direcaoCampo * tipoParticula;
+
+        estado = "ESPERANDO";
+        repeticoes = 0;
+
+        const btns = document.querySelectorAll("#areaBotoes3 button");
+        btns.forEach((b) => (b.disabled = false));
+
+        const spanParticula = document.getElementById("textoParticula");
+        if (tipoParticula === 1) {
+          spanParticula.innerText = "Próton (+)";
+          spanParticula.style.background = "#e74c3c";
+        } else {
+          spanParticula.innerText = "Elétron (-)";
+          spanParticula.style.background = "#3498db";
+        }
+
+        cancelAnimationFrame(animacaoId);
+        posX = 50;
+        posY = 200;
+        velX = 5;
+        velY = 0;
+        rastro = [];
+        desenhar();
+      }
+
+      function desenhar() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (vidas <= 0) {
+          ctx.fillStyle = "white";
+          ctx.font = "bold 40px Arial";
+          ctx.textAlign = "center";
+          ctx.fillText("FIM DE JOGO!", 350, 180);
+          ctx.font = "20px Arial";
+          ctx.fillText(`Você fez ${pontuacao} pontos.`, 350, 230);
+          return;
+        }
+
+        // 1. Região do Campo Magnético
+        ctx.fillStyle = "rgba(16, 185, 129, 0.1)";
+        ctx.fillRect(150, 50, 500, 300);
+        ctx.strokeStyle = "#10b981";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([]);
+        ctx.strokeRect(150, 50, 500, 300);
+
+        // 2. Símbolos do Campo Magnético
+        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+        ctx.font = "20px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        let simboloCampo = direcaoCampo === 1 ? "⊗" : "⊙";
+        let legendaCampo =
+          direcaoCampo === 1 ? "Campo B (Entrando ⊗)" : "Campo B (Saindo ⊙)";
+
+        for (let x = 190; x <= 610; x += 60) {
+          for (let y = 90; y <= 310; y += 50) {
+            ctx.fillText(simboloCampo, x, y);
+          }
+        }
+
+        ctx.fillStyle = "#f1c40f";
+        ctx.font = "bold 16px Arial";
+        ctx.fillText(legendaCampo, 400, 30);
+
+        // 3. Rastro
+        if (rastro.length > 0) {
+          ctx.beginPath();
+          ctx.strokeStyle =
+            tipoParticula === 1
+              ? "rgba(231, 76, 60, 0.6)"
+              : "rgba(52, 152, 219, 0.6)";
+          ctx.lineWidth = 3;
+          ctx.setLineDash([5, 5]);
+          ctx.moveTo(rastro[0].x, rastro[0].y);
+          for (let i = 1; i < rastro.length; i++)
+            ctx.lineTo(rastro[i].x, rastro[i].y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        // 4. Partícula
+        ctx.beginPath();
+        ctx.arc(posX, posY, 14, 0, Math.PI * 2);
+        ctx.fillStyle = tipoParticula === 1 ? "#e74c3c" : "#3498db";
+        ctx.fill();
+        ctx.fillStyle = "white";
+        ctx.font = "bold 16px Arial";
+        ctx.fillText(tipoParticula === 1 ? "+" : "-", posX, posY);
+
+        // Vetor velocidade inicial
+        ctx.strokeStyle = "#f1c40f";
+        ctx.fillStyle = "#f1c40f";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(posX, posY);
+        ctx.lineTo(posX + 35, posY);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(posX + 35, posY - 5);
+        ctx.lineTo(posX + 45, posY);
+        ctx.lineTo(posX + 35, posY + 5);
+        ctx.fill();
+
+        ctx.font = "bold 14px Arial";
+        ctx.fillText("v", posX + 20, posY - 12);
+
+        // 5. Seta ao passar o mouse
+        if (setaHover !== 0) {
+          ctx.strokeStyle = "#f1c40f";
+          ctx.fillStyle = "#f1c40f";
+          ctx.lineWidth = 4;
+
+          let targetY = setaHover === 1 ? posY - 60 : posY + 60;
+
+          ctx.beginPath();
+          ctx.moveTo(posX, posY);
+          ctx.lineTo(posX, targetY);
+          ctx.stroke();
+
+          ctx.beginPath();
+          if (setaHover === 1) {
+            ctx.moveTo(posX - 8, targetY + 10);
+            ctx.lineTo(posX + 8, targetY + 10);
+            ctx.lineTo(posX, targetY);
+          } else {
+            ctx.moveTo(posX - 8, targetY - 10);
+            ctx.lineTo(posX + 8, targetY - 10);
+            ctx.lineTo(posX, targetY);
+          }
+          ctx.fill();
+        }
+      }
+
+      function atualizarFisica(t = performance.now()) {
+        if (vidas <= 0 || estado !== "ANIMANDO") return;
+
+        // fator de tempo: 1 = um frame a 60 Hz; o limite 3 evita saltos se a aba travar
+        const k = Math.max(0, Math.min((t - ultimoT) / 16.667, 3));
+        ultimoT = t;
+
+        if (dentroDoCampo()) {
+          // força perpendicular à velocidade: gira o vetor, não soma aceleração em Y
+          const ang = forcaCorreta * -OMEGA * k;
+          const vx = velX * Math.cos(ang) - velY * Math.sin(ang);
+          const vy = velX * Math.sin(ang) + velY * Math.cos(ang);
+          velX = vx;
+          velY = vy;
+        }
+
+        posX += velX * k;
+        posY += velY * k;
+
+        if (Math.random() > 0.5) rastro.push({ x: posX, y: posY });
+        desenhar();
+
+        if (posX > 670 || posY < 30 || posY > 370) {
+          repeticoes++;
+
+          if (repeticoes < maxRepeticoes) {
+            posX = 50;
+            posY = 200;
+            velX = 5;
+            velY = 0;
+            rastro = [];
+            setTimeout(() => {
+                ultimoT = performance.now();
+                animacaoId = requestAnimationFrame(atualizarFisica);
+            }, 200);
+          } else {
+            finalizarRodada();
+          }
+        } else {
+          animacaoId = requestAnimationFrame(atualizarFisica);
+        }
+      }
+
+      function reiniciarJogo() {
+        document.getElementById("explicacao").innerText = "";
+        pontuacao = 0;
+        vidas = 3;
+        document.getElementById("pontos3").innerText = pontuacao;
+        atualizarVidas();
+        document.getElementById("areaBotoes3").innerHTML = `
+                <button onclick="verificarForca(1)" onmouseover="destacarSeta(1)" onmouseout="destacarSeta(0)">Para Cima (⬆)</button>
+                <button onclick="verificarForca(-1)" onmouseover="destacarSeta(-1)" onmouseout="destacarSeta(0)">Para Baixo (⬇)</button>
+            `;
+        gerarNovoDesafio();
+      }
+
+      function verificarForca(chute) {
+        setaHover = 0;
+        if (estado !== "ESPERANDO") return;
+
+        respostaUsuario = chute;
+        estado = "ANIMANDO";
+
+        const btns = document.querySelectorAll("#areaBotoes3 button");
+        btns.forEach((b) => (b.disabled = true));
+        ultimoT = performance.now();
+        atualizarFisica();
+      }
+
+      function finalizarRodada() {
+        const nomeP = tipoParticula === 1 ? "Próton (+)" : "Elétron (-)";
+        const nomeB = direcaoCampo === 1 ? "entrando (⊗)" : "saindo (⊙)";
+        const nomeF = forcaCorreta === 1 ? "para cima" : "para baixo";
+        document.getElementById("explicacao").innerText =
+  `Rodada anterior: ${nomeP} com campo ${nomeB} → força ${nomeF}.`;
+        if (respostaUsuario === forcaCorreta) {
+          pontuacao += 10;
+          darFeedback(true);
+        } else {
+          vidas--;
+          atualizarVidas();
+          darFeedback(false);
+        }
+
+        document.getElementById("pontos3").innerText = pontuacao;
+
+        if (vidas <= 0) {
+          cancelAnimationFrame(animacaoId);
+          desenhar();
+          document.getElementById("areaBotoes3").innerHTML =
+            `<button onclick="reiniciarJogo()">Tentar Novamente</button>`;
+        } else {
+          gerarNovoDesafio();
+        }
+      }
+
+      atualizarVidas();
+      gerarNovoDesafio();
+    </script>
+  </body>
+</html>
