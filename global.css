@@ -1,0 +1,298 @@
+/* ==========================================================================
+   0.MENU PRINCIPAL (index.html)
+   ========================================================================== */
+body.pagina-menu {
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+    background-color: #0f172a;
+}
+
+.titulo {
+    font-size: 36px;
+    color: #f1c40f;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.subtitulo {
+    font-size: 18px;
+    color: #cbd5e1;
+    margin-bottom: 50px;
+    text-align: center;
+}
+
+.menu-container {
+    display: flex;
+    gap: 40px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.cartao-jogo {
+    background-color: #1e293b;
+    border: 2px solid #475569;
+    border-radius: 12px;
+    padding: 30px;
+    width: 260px;
+    text-align: center;
+    text-decoration: none;
+    color: white;
+    transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.cartao-jogo:hover {
+    transform: translateY(-10px);
+    border-color: #3498db;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+}
+
+.cartao-jogo h3 {
+    font-size: 22px;
+    margin-top: 0;
+    color: #3498db;
+}
+
+.cartao-jogo.jogo2 h3 { color: #e74c3c; }
+.cartao-jogo.jogo2:hover { border-color: #e74c3c; }
+
+.cartao-jogo.simulador h3 { color: #f1c40f; }
+.cartao-jogo.simulador:hover { border-color: #f1c40f; }
+
+.cartao-jogo.jogo3 h3 { color: #10b981; }
+.cartao-jogo.jogo3:hover { border-color: #10b981; }
+
+.cartao-jogo p {
+    font-size: 16px;
+    color: #94a3b8;
+    line-height: 1.5;
+}
+
+.icone {
+    font-size: 60px;
+    margin-bottom: 15px;
+}
+
+/* ==========================================================================
+   1. ESTRUTURA BASE E PÁGINA
+   ========================================================================== */
+body { 
+    display: flex; 
+    flex-direction: column;
+    align-items: center; 
+    background-color: #1e1e1e; 
+    color: #ffffff;
+    font-family: Arial, sans-serif; 
+    margin-top: 30px;
+    padding: 0 12px 30px;
+    box-sizing: border-box;
+    min-height: 100vh;
+    transition: background-color 0.3s ease; 
+}
+
+/* Temas de cores do fundo (Jogos 2 e 3) */
+body.tema-espacial { background-color: #0f172a; }
+body.tema-magnetico { background-color: #022c22; }
+
+/* Feedback de acerto/erro */
+body.acerto { background-color: #14522d !important; }
+body.erro   { background-color: #5c1616 !important; }
+
+/* ==========================================================================
+   2. BOTÃO VOLTAR
+   ========================================================================== */
+.btn-voltar {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    padding: 10px 15px;
+    background-color: #333333; 
+    color: #ffffff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 16px;
+    border: 2px solid #555555;
+    transition: all 0.2s ease;
+}
+
+.btn-voltar:hover {
+    background-color: #444444;
+    border-color: #f1c40f;
+    transform: scale(1.05);
+}
+
+/* ==========================================================================
+   3. PAINEL DE STATUS, TEXTOS E LEGENDA
+   ========================================================================== */
+.painel-status {
+    display: flex;
+    gap: 50px;
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.pontos-texto { color: #f1c40f; }
+.vidas-texto  { color: #e74c3c; }
+
+.pergunta {
+    font-size: 20px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.nome-particula {
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+#listaParticulas {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.explicacao {
+    min-height: 3em;
+    max-width: 760px;
+    margin-bottom: 12px;
+    padding: 0 8px;
+    color: #f1c40f;
+    text-align: center;
+}
+
+/* ==========================================================================
+   4. CANVAS
+   ========================================================================== */
+canvas { 
+    width: min(800px, 96vw);
+    height: auto;
+    box-sizing: border-box;
+    background: #2d2d2d; 
+    border: 2px solid #555555; 
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+/* ==========================================================================
+   5. PAINEL DE CONTROLES E FÓRMULAS (SIMULADOR)
+   ========================================================================== */
+.painel {
+    display: flex;
+    gap: 40px;
+    background: #333333;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.controle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.controle label {
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.controle input[type=number] {
+    width: 120px;
+    padding: 8px;
+    font-size: 16px;
+    border-radius: 4px;
+    border: 1px solid #555555;
+    background: #222222;
+    color: #ffffff;
+    text-align: center;
+}
+
+.formulas {
+    background: #2d2d2d;
+    border: 1px solid #555555;
+    border-radius: 8px;
+    padding: 15px 30px;
+    margin-bottom: 20px;
+    text-align: center;
+    line-height: 1.6;
+}
+
+.formulas code {
+    background: #111111;
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: #f1c40f;
+    font-size: 16px;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+/* ==========================================================================
+   6. BOTÕES
+   ========================================================================== */
+.botoes {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+    width: min(680px, 94vw);
+}
+
+button {
+    padding: 15px 25px;
+    font-size: 18px;
+    cursor: pointer;
+    border-radius: 8px;
+    background: #333333;
+    color: #ffffff;
+    font-weight: bold;
+    transition: 0.2s;
+    border: 2px solid #555555;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Cores específicas de botões */
+.btn-proton { background-color: #e74c3c; border-color: #c0392b; }
+.btn-eletron { background-color: #3498db; border-color: #2980b9; }
+
+.btn-misterio-positivo:hover { border-color: #e74c3c; background: #c0392b; }
+.btn-misterio-negativo:hover { border-color: #3498db; background: #2980b9; }
+
+/* Efeito Hover seguro para Mobile */
+@media (hover: hover) {
+    button:not(:disabled):hover { 
+        background-color: #444444; 
+        transform: scale(1.05); 
+        border-color: #f1c40f;
+    }
+}
+
+/* ==========================================================================
+   7. FOOTER E RESPONSIVIDADE
+   ========================================================================== */
+.app-footer {
+    text-align: center;
+    padding: 20px 10px 80px 10px;
+    font-size: 13px;
+    color: #888888;
+}
+
+.app-footer strong {
+    color: #f1c40f;
+}
+
+@media (max-width: 700px) {
+    body { margin-top: 12px; }
+    .btn-voltar { position: static; align-self: flex-start; margin-bottom: 12px; }
+    .painel-status { font-size: 18px; gap: 24px; }
+    .pergunta { font-size: 16px; }
+    .painel { flex-direction: column; gap: 15px; }
+}
