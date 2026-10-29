@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Interação de Cargas (Lei de Coulomb)</title>
+    <link rel="stylesheet" href="estilo2.css">
+</head>
+<body>
+
+    <div class="painel-status">
+        <div class="pontos-texto">Pontuação: <span id="pontos2">0</span></div>
+        <div class="vidas-texto">Vidas: <span id="vidas2">❤️❤️❤️</span></div>
+    </div>
+    
+    <div class="pergunta">
+        A Carga Central é conhecida. Observe a órbita da Carga Misteriosa (cinza).<br>
+        <strong>Qual é o sinal da Carga Misteriosa?</strong>
+    </div>
+
+    <canvas id="coulombCanvas" width="700" height="400"></canvas>
+    
+    <div class="botoes" id="areaBotoes2">
+        <button class="btn-misterio-positivo" onclick="verificarInteracao(1)">A Misteriosa é Positiva (+)</button>
+        <button class="btn-misterio-negativo" onclick="verificarInteracao(-1)">A Misteriosa é Negativa (-)</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('coulombCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let posX, posY, velX, velY;
+        let rastro = [];
+        let animacaoId;
+        
+        let pontuacao = 0;
+        let vidas = 3; 
+        
+        let cargaCentral = 1; 
+        let cargaMisteriosa = 1; 
+        let posYInicial = 200; // Guarda a posição de entrada para repetir a mesma animação
+
+        const centroX = 350;
+        const centroY = 200;
+
+        function atualizarVidas() {
+            let coracoes = "";
+            for(let i=0; i<vidas; i++) coracoes += "❤️";
+            for(let i=vidas; i<3; i++) coracoes += "🖤";
+            document.getElementById('vidas2').innerText = coracoes;
+        }
+
+        function darFeedback(acertou) {
+            const corOriginal = '#0f172a';
+            document.body.style.backgroundColor = acertou ? '#064e3b' : '#7f1d1d';
+            setTimeout(() => { document.body.style.backgroundColor = corOriginal; }, 400);
+        }
+
+        // Função 1: Cria um desafio novo do zero (só roda quando acerta/erra)
+        function gerarNovoDesafio() {
+            if (vidas <= 0) return;
+            cargaCentral = Math.random() > 0.5 ? 1 : -1;
+            cargaMisteriosa = Math.random() > 0.5 ? 1 : -1;
+            posYInicial = Math.random() > 0.5 ? 140 : 260; // Define por onde ela vai entrar
+            
+            iniciarAnimacao();
+        }
+
+        // Função 2: Roda a animação do desafio atual
+        function iniciarAnimacao() {
+            cancelAnimationFrame(animacaoId);
+            posX = 50; 
+            posY = posYInicial; // Usa sempre a mesma posição sorteada no desafio
+            velX = 4; 
+            velY = 0;
+            rastro = [];
+            
+            atualizarFisica();
+        }
+
+        function desenhar() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (vidas <= 0) {
+                ctx.fillStyle = 'white'; ctx.font = 'bold 40px Arial'; ctx.textAlign = 'center';
+                ctx.fillText("FIM DE JOGO!", 350, 180);
+                ctx.font = '20px Arial'; ctx.fillText(`Você fez ${pontuacao} pontos.`, 350, 230);
+                return;
+            }
+
+            ctx.beginPath();
+            ctx.arc(centroX, centroY, 20, 0, Math.PI * 2);
+            ctx.fillStyle = cargaCentral === 1 ? '#e74c3c' : '#3498db';
+            ctx.fill();
+            ctx.fillStyle = 'white'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(cargaCentral === 1 ? '+' : '-', centroX, centroY);
+
+            if (rastro.length > 0) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(149, 165, 166, 0.6)';
+                ctx.lineWidth = 3; ctx.setLineDash([5, 5]);
+                ctx.moveTo(rastro[0].x, rastro[0].y);
+                for (let i = 1; i < rastro.length; i++) ctx.lineTo(rastro[i].x, rastro[i].y);
+                ctx.stroke(); ctx.setLineDash([]); 
+            }
+
+            ctx.beginPath();
+            ctx.arc(posX, posY, 14, 0, Math.PI * 2);
+            ctx.fillStyle = '#95a5a6'; 
+            ctx.fill();
+            ctx.fillStyle = 'black'; ctx.font = 'bold 16px Arial';
+            ctx.fillText('?', posX, posY);
+        }
+
+        function atualizarFisica() {
+            if (vidas <= 0) return;
+
+            let dx = posX - centroX;
+            let dy = posY - centroY;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist < 20) dist = 20;
+
+            let forca = (cargaCentral * cargaMisteriosa * 1500) / (dist * dist);
+            let aceleracaoX = forca * (dx / dist);
+            let aceleracaoY = forca * (dy / dist);
+
+            velX += aceleracaoX;
+            velY += aceleracaoY;
+            
+            posX += velX;
+            posY += velY;
+
+            if (Math.random() > 0.5) rastro.push({x: posX, y: posY});
+            desenhar();
+
+            // Se a partícula sair da tela, repete a MESMA animação (não gera novo desafio)
+            if (posX > 750 || posX < -50 || posY > 450 || posY < -50) {
+                setTimeout(iniciarAnimacao, 500); 
+            } else {
+                animacaoId = requestAnimationFrame(atualizarFisica);
+            }
+        }
+
+        function reiniciarJogo() {
+            pontuacao = 0; vidas = 3;
+            document.getElementById('pontos2').innerText = pontuacao;
+            atualizarVidas();
+            document.getElementById('areaBotoes2').innerHTML = `
+                <button class="btn-misterio-positivo" onclick="verificarInteracao(1)">A Misteriosa é Positiva (+)</button>
+                <button class="btn-misterio-negativo" onclick="verificarInteracao(-1)">A Misteriosa é Negativa (-)</button>
+            `;
+            gerarNovoDesafio();
+        }
+
+        function verificarInteracao(chute) {
+            if (chute === cargaMisteriosa) {
+                pontuacao += 10;
+                darFeedback(true);
+            } else {
+                vidas--;
+                atualizarVidas();
+                darFeedback(false);
+            }
+            document.getElementById('pontos2').innerText = pontuacao;
+            
+            if (vidas <= 0) {
+                cancelAnimationFrame(animacaoId);
+                desenhar(); 
+                document.getElementById('areaBotoes2').innerHTML = `<button onclick="reiniciarJogo()">Tentar Novamente</button>`;
+            } else {
+                // Só gera um novo nível depois que o usuário responde
+                gerarNovoDesafio(); 
+            }
+        }
+
+        atualizarVidas();
+        gerarNovoDesafio(); // Inicia o jogo a primeira vez
+    </script>
+    <br>
+    <a href="index.html" class="btn-voltar">⬅ Voltar ao Menu</a>
+</body>
+</html>
