@@ -22,6 +22,7 @@
 
     <div id="legendaCampo" class="legenda-campo"></div>
     <canvas id="campoCanvas" width="800" height="480"></canvas>
+    <div id="explicacao" class="explicacao" aria-live="polite"></div>
 
     <div class="botoes" id="areaBotoes3">
       <button
@@ -83,7 +84,6 @@
         ENTRANDO: { x: 0, y: 0, z: -1, nome: "Entrando na Tela (⊗)" },
         SAINDO: { x: 0, y: 0, z: 1, nome: "Saindo da Tela (⊙)" },
       };
-      const OMEGA = 0.03; // quanto o vetor velocidade gira por frame (rad)
       let ultimoT = 0;
 
       let estado = "ESPERANDO"; // 'ESPERANDO' ou 'ANIMANDO'
@@ -108,12 +108,14 @@
         const v = DIRS[vKey];
         const b = DIRS[bKey];
 
-        const vy_phys = -v.y;
-        const by_phys = -b.y;
+        // Converte o eixo Y do canvas (positivo para baixo) para o eixo físico.
+        const vy = -v.y;
+        const by = -b.y;
 
-        const fx_phys = q * (vy_phys * b.z - v.z * by_phys);
+        // F = q (v × B), considerando o sinal da carga.
+        const fx_phys = q * (vy * b.z - v.z * by);
         const fy_phys = q * (v.z * b.x - v.x * b.z);
-        const fz_phys = q * (v.x * by_phys - vy_phys * b.x);
+        const fz_phys = q * (v.x * by - vy * b.x);
 
         const fx_canvas = Math.sign(fx_phys);
         const fy_canvas = Math.sign(-fy_phys);
@@ -203,6 +205,7 @@
 
         estado = "ESPERANDO";
         repeticoes = 0;
+        document.getElementById("explicacao").innerText = "";
 
         const btns = document.querySelectorAll("#areaBotoes3 button");
         btns.forEach((b) => (b.disabled = false));
@@ -468,6 +471,7 @@
       }
 
       function reiniciarJogo() {
+        cancelAnimationFrame(animacaoId);
         document.getElementById("explicacao").innerText = "";
         pontuacao = 0;
         vidas = 3;
