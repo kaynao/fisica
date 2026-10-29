@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Desafio Eletrostático</title>
+    <link rel="stylesheet" href="global.css">
+  </head>
+  <body>
+    <!-- Botão de Voltar ao Menu -->
+    <a href="index.html" class="btn-voltar">⬅ Voltar ao Menu</a>
+
+    <div class="painel-status">
+      <div class="pontos-texto">Pontuação: <span id="pontos">0</span></div>
+      <div class="vidas-texto">Vidas: <span id="vidas">❤️❤️❤️</span></div>
+    </div>
+
+    <div class="pergunta">
+      Observe a trajetória das cargas lançadas e a variação das curvas.<br />
+      <div id="listaParticulas"></div>
+      <strong>Quais são os sinais das placas?</strong>
+    </div>
+
+    <canvas id="jogoCanvas" width="700" height="400"></canvas>
+
+    <div class="botoes" id="areaBotoes">
+      <button
+        onclick="verificarResposta(1)"
+        onmouseover="destacarPlacas(1)"
+        onmouseout="destacarPlacas(0)"
+      >
+        Placa Superior (+) / Inferior (-)
+      </button>
+      <button
+        onclick="verificarResposta(-1)"
+        onmouseover="destacarPlacas(-1)"
+        onmouseout="destacarPlacas(0)"
+      >
+        Placa Superior (-) / Inferior (+)
+      </button>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("jogoCanvas");
+      const ctx = canvas.getContext("2d");
+
+      let animacaoId;
+      let pontuacao = 0;
+      let vidas = 3;
+      let sinalPlacaSuperior = 1;
+
+      let corPlacaSup = "#7f8c8d";
+      let corPlacaInf = "#7f8c8d";
+      let textoPlacaSup = "Placa Superior ?";
+      let textoPlacaInf = "Placa Inferior ?";
+
+      // Array para gerenciar múltiplas partículas ao mesmo tempo
+      let particulas = [];
+
+      function atualizarVidas() {
+        let coracoes = "";
+        for (let i = 0; i < vidas; i++) coracoes += "❤️";
+        for (let i = vidas; i < 3; i++) coracoes += "🖤";
+        document.getElementById("vidas").innerText = coracoes;
+      }
+
+      function destacarPlacas(opcao) {
+        if (vidas <= 0) return;
+        if (opcao === 1) {
+          corPlacaSup = "rgba(231, 76, 60, 0.8)";
+          corPlacaInf = "rgba(52, 152, 219, 0.8)";
+          textoPlacaSup = "Placa Superior (+)";
+          textoPlacaInf = "Placa Inferior (-)";
+        } else if (opcao === -1) {
+          corPlacaSup = "rgba(52, 152, 219, 0.8)";
+          corPlacaInf = "rgba(231, 76, 60, 0.8)";
+          textoPlacaSup = "Placa Superior (-)";
+          textoPlacaInf = "Placa Inferior (+)";
+        } else {
+          corPlacaSup = "#7f8c8d";
+          corPlacaInf = "#7f8c8d";
+          textoPlacaSup = "Placa Superior ?";
+          textoPlacaInf = "Placa Inferior ?";
+        }
+      }
+
+      function darFeedbackVisual(acertou) {
+        const corOriginal = "#1e1e1e";
+        document.body.style.backgroundColor = acertou ? "#14522d" : "#5c1616";
+        setTimeout(() => {
+          document.body.style.backgroundColor = corOriginal;
+        }, 400);
+      }
+
+      function gerarNovoDesafio() {
+        if (vidas <= 0) return;
+
+        sinalPlacaSuperior = Math.random() > 0.5 ? 1 : -1;
+
+        // Sistema de Progressão: Aumenta a quantidade de cargas conforme a pontuação
+        let qtdCargas = 1;
+        if (pontuacao >= 30) qtdCargas = 2; // Fase 2
+        if (pontuacao >= 60) qtdCargas = 3; // Fase 3
+
+        particulas = [];
+        const listaHtml = document.getElementById("listaParticulas");
+        listaHtml.innerHTML = "";
+
+        for (let i = 0; i < qtdCargas; i++) {
+          // Sorteia 1 (Próton), -1 (Elétron), ou 0 (Nêutron)
+          let tipo = Math.floor(Math.random() * 3) - 1;
+
+          // Regra de Ouro: A primeira carga NUNCA pode ser nêutron,
+          // senão o jogador não tem como adivinhar a placa.
+          if (i === 0 && tipo === 0) {
+            tipo = Math.random() > 0.5 ? 1 : -1;
+          }
+
+          // Cria o objeto da partícula com propriedades variadas
+          let p = {
+            tipo: tipo,
+            startX: 50,
+            startY: 180 + i * 25 - qtdCargas * 10, // Espalha elas verticalmente
+            velX: 4 + Math.random() * 5, // Velocidades diferentes alteram a curvatura da parábola
+            vy: 0,
+            ay: 0,
+            x: 0,
+            y: 0,
+            rastro: [],
+            ativa: true,
+          };
+
+          // Define a aceleração baseada no tipo da carga e no sinal da placa
+          // Cargas neutras (0) ficam com aceleração 0 e andam reto.
+          const fatorEscala = 0.08 + Math.random() * 0.04; // Simula massas levemente diferentes
+          p.ay = p.tipo * sinalPlacaSuperior * fatorEscala;
+
+          particulas.push(p);
+
+          // Adiciona a legenda (UI) correspondente
+          let span = document.createElement("span");
+          span.className = "nome-particula";
+          if (tipo === 1) {
+            span.innerText = "Próton (+)";
+            span.style.background = "#e74c3c";
+          } else if (tipo === -1) {
+            span.innerText = "Elétron (-)";
+            span.style.background = "#3498db";
+          } else {
+            span.innerText = "Nêutron (0)";
+            span.style.background = "#95a5a6"; // Cinza
+          }
+          listaHtml.appendChild(span);
+        }
+
+        iniciarAnimacao();
+      }
+
+      function iniciarAnimacao() {
+        cancelAnimationFrame(animacaoId);
+
+        // Reseta todas as partículas para o ponto de partida da fase atual
+        particulas.forEach((p) => {
+          p.x = p.startX;
+          p.y = p.startY;
+          p.vy = 0;
+          p.rastro = [];
+          p.ativa = true;
+        });
+
+        atualizarFisica();
+      }
+
+      function desenharCenario() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (vidas <= 0) {
+          ctx.fillStyle = "white";
+          ctx.font = "bold 40px Arial";
+          ctx.textAlign = "center";
+          ctx.fillText("FIM DE JOGO!", 350, 180);
+          ctx.font = "20px Arial";
+          ctx.fillText(`Você fez ${pontuacao} pontos.`, 350, 230);
+          return;
+        }
+
+        ctx.fillStyle = corPlacaSup;
+        ctx.fillRect(100, 50, 500, 20);
+        ctx.fillStyle = corPlacaInf;
+        ctx.fillRect(100, 330, 500, 20);
+
+        ctx.fillStyle = "white";
+        ctx.font = "18px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(textoPlacaSup, 350, 40);
+        ctx.fillText(textoPlacaInf, 350, 370);
+
+        particulas.forEach((p) => {
+          if (p.rastro.length > 0) {
+            ctx.beginPath();
+            if (p.tipo === 1) ctx.strokeStyle = "rgba(231, 76, 60, 0.6)";
+            else if (p.tipo === -1) ctx.strokeStyle = "rgba(52, 152, 219, 0.6)";
+            else ctx.strokeStyle = "rgba(149, 165, 166, 0.6)";
+
+            ctx.lineWidth = 3;
+            ctx.setLineDash([5, 5]);
+            ctx.moveTo(p.rastro[0].x, p.rastro[0].y);
+            for (let i = 1; i < p.rastro.length; i++)
+              ctx.lineTo(p.rastro[i].x, p.rastro[i].y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 14, 0, Math.PI * 2);
+          if (p.tipo === 1) ctx.fillStyle = "#e74c3c";
+          else if (p.tipo === -1) ctx.fillStyle = "#3498db";
+          else ctx.fillStyle = "#95a5a6";
+          ctx.fill();
+
+          ctx.fillStyle = "white";
+          ctx.textBaseline = "middle";
+          let simbolo = p.tipo === 1 ? "+" : p.tipo === -1 ? "-" : "0";
+          ctx.fillText(simbolo, p.x, p.y);
+        });
+      }
+
+      function atualizarFisica() {
+        if (vidas <= 0) return;
+
+        particulas.forEach((p) => {
+          // A partícula só se move e ganha rastro se estiver "ativa"
+          if (p.ativa) {
+            p.x += p.velX;
+            p.vy += p.ay;
+            p.y += p.vy;
+            if (Math.random() > 0.5) p.rastro.push({ x: p.x, y: p.y });
+
+            // Se a partícula bater na placa ou sair da tela, desativamos ela (congela)
+            if (p.x > 650 || p.y < 75 || p.y > 325) {
+              p.ativa = false;
+            }
+          }
+        });
+
+        desenharCenario();
+
+        // Verifica se TODAS as partículas já estão inativas (!p.ativa)
+        let todasFora = particulas.every((p) => !p.ativa);
+
+        if (todasFora) {
+          setTimeout(iniciarAnimacao, 500);
+        } else {
+          animacaoId = requestAnimationFrame(atualizarFisica);
+        }
+      }
+
+      function reiniciarJogo() {
+        pontuacao = 0;
+        vidas = 3;
+        document.getElementById("pontos").innerText = pontuacao;
+        atualizarVidas();
+        document.getElementById("areaBotoes").innerHTML = `
+                <button onclick="verificarResposta(1)" onmouseover="destacarPlacas(1)" onmouseout="destacarPlacas(0)">Placa Superior (+) / Inferior (-)</button>
+                <button onclick="verificarResposta(-1)" onmouseover="destacarPlacas(-1)" onmouseout="destacarPlacas(0)">Placa Superior (-) / Inferior (+)</button>
+            `;
+        gerarNovoDesafio();
+      }
+
+      function verificarResposta(chutePlacaSuperior) {
+        destacarPlacas(0);
+        if (chutePlacaSuperior === sinalPlacaSuperior) {
+          pontuacao += 10;
+          darFeedbackVisual(true);
+        } else {
+          vidas--;
+          atualizarVidas();
+          darFeedbackVisual(false);
+        }
+        document.getElementById("pontos").innerText = pontuacao;
+
+        if (vidas <= 0) {
+          cancelAnimationFrame(animacaoId);
+          desenharCenario();
+          document.getElementById("areaBotoes").innerHTML =
+            `<button onclick="reiniciarJogo()">Tentar Novamente</button>`;
+        } else {
+          gerarNovoDesafio();
+        }
+      }
+
+      atualizarVidas();
+      gerarNovoDesafio();
+    </script>
+    <br />
+    <a href="index.html" class="btn-voltar">⬅ Voltar ao Menu</a>
+
+    <footer class="app-footer">
+      <p>Desenvolvido por <strong>@kaynao</strong></p>   
+    </footer>
+  </body>
+</html>

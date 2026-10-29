@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Simulador de Lançamento de Cargas</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <h2>Simulador: Movimento de Cargas em Campo Elétrico</h2>
+    
+    <div class="painel">
+        <div class="controle">
+            <label for="velInput">Velocidade Inicial (Vx) [m/s]:</label>
+            <input type="number" id="velInput" min="1" max="20" step="0.5" value="5">
+        </div>
+        
+        <div class="controle">
+            <label for="campoInput">Campo Elétrico (E) [N/C]:</label>
+            <input type="number" id="campoInput" min="10" max="500" step="10" value="100">
+        </div>
+    </div>
+
+
+    <canvas id="simulador" width="700" height="400"></canvas>
+    
+    <div class="botoes">
+        <button class="btn-proton" onclick="lancarCarga(1)">Lançar Próton (+)</button>
+        <button class="btn-eletron" onclick="lancarCarga(-1)">Lançar Elétron (-)</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simulador');
+        const ctx = canvas.getContext('2d');
+
+        let posX, posY;
+        let velX, velY;
+        let aceleracaoY;
+        let tipoCarga = 0; 
+        let animacaoId;
+        let rastro = []; 
+        
+        // NOVA VARIÁVEL: Cria o contador de tempo
+        let tempo = 0; 
+
+        function desenharCenario() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Placas
+            ctx.fillStyle = 'rgba(231, 76, 60, 0.7)';
+            ctx.fillRect(100, 50, 500, 20);
+            ctx.fillStyle = 'white';
+            ctx.font = '16px Arial';
+            ctx.fillText("Placa Positiva (+)", 280, 40);
+
+            ctx.fillStyle = 'rgba(52, 152, 219, 0.7)';
+            ctx.fillRect(100, 330, 500, 20);
+            ctx.fillText("Placa Negativa (-)", 280, 370);
+
+            // Linhas do Campo Elétrico
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.beginPath();
+            for(let i = 120; i <= 580; i += 40) {
+                ctx.moveTo(i, 70);
+                ctx.lineTo(i, 330);
+                ctx.lineTo(i - 5, 320);
+                ctx.moveTo(i, 330);
+                ctx.lineTo(i + 5, 320);
+            }
+            ctx.stroke();
+
+            // Desenhar o Rastro
+            if (rastro.length > 0) {
+                ctx.beginPath();
+                ctx.strokeStyle = tipoCarga > 0 ? 'rgba(231, 76, 60, 0.6)' : 'rgba(52, 152, 219, 0.6)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                
+                ctx.moveTo(rastro[0].x, rastro[0].y);
+                for (let i = 1; i < rastro.length; i++) {
+                    ctx.lineTo(rastro[i].x, rastro[i].y);
+                }
+                ctx.stroke();
+                ctx.setLineDash([]); 
+            }
+
+            // Desenhar a Partícula
+            if (tipoCarga !== 0) {
+                ctx.beginPath();
+                ctx.arc(posX, posY, 12, 0, Math.PI * 2);
+                ctx.fillStyle = tipoCarga > 0 ? '#e74c3c' : '#3498db';
+                ctx.fill();
+                ctx.fillStyle = 'white';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(tipoCarga > 0 ? '+' : '-', posX, posY);
+            }
+
+            // NOVO: Mostrar o Tempo na tela
+            ctx.fillStyle = '#f1c40f'; // Cor amarela para destacar
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'left';
+            // O .toFixed(2) garante que o número tenha apenas 2 casas decimais (ex: 1.45 s)
+            ctx.fillText(`Tempo (t): ${tempo.toFixed(2)} s`, 20, 30); 
+        }
+
+        function atualizarFisica() {
+            posX += velX;
+            velY += aceleracaoY;
+            posY += velY;
+            
+            // NOVO: O tempo avança a cada frame (0.02 segundos por atualização)
+            tempo += 0.02; 
+
+            rastro.push({x: posX, y: posY});
+            desenharCenario();
+
+            if (posX < 620 && posY > 82 && posY < 318) {
+                animacaoId = requestAnimationFrame(atualizarFisica);
+            }
+        }
+
+        function lancarCarga(carga) {
+            cancelAnimationFrame(animacaoId);
+            tipoCarga = carga;
+            posX = 50; 
+            posY = 200; 
+            velY = 0;
+            
+            // NOVO: Zera o tempo sempre que um novo lançamento é feito
+            tempo = 0; 
+            
+            rastro = [{x: posX, y: posY}]; 
+            
+            const inputVelocidade = parseFloat(document.getElementById('velInput').value);
+            const inputCampo = parseFloat(document.getElementById('campoInput').value);
+            
+            if (isNaN(inputVelocidade) || isNaN(inputCampo)) {
+                alert("Por favor, digite números válidos para Velocidade e Campo Elétrico.");
+                return;
+            }
+
+            velX = inputVelocidade; 
+            const fatorEscala = 0.0008; 
+            aceleracaoY = carga * (inputCampo * fatorEscala); 
+
+            atualizarFisica();
+        }
+
+        desenharCenario();
+    </script>
+
+    <br>
+
+    <div class="formulas">
+        <p><strong>Fórmulas da Cinemática e Dinâmica aplicadas:</strong></p>
+        <p>Força Elétrica: <code>F = q &middot; E</code> &nbsp;|&nbsp; Aceleração (eixo Y): <code>a = (q &middot; E) / m</code></p>
+        <p>Movimento Uniforme (eixo X): <code>x = V<sub>x</sub> &middot; t</code> &nbsp;|&nbsp; Movimento Variado (eixo Y): <code>y = &frac12; &middot; a &middot; t&sup2;</code></p>
+    </div>
+
+    <br>
+    <a href="index.html" class="btn-voltar">⬅ Voltar ao Menu</a>
+
+    <footer class="app-footer">
+      <p>Desenvolvido por <strong>@kaynao</strong></p>
+    </footer>
+</body>
+</html>
